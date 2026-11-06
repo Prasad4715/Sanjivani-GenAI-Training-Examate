@@ -1,2 +1,4 @@
 # ChalanCheck - Traffic Challan Assistant
 # Day 2: No external dependencies required.
+#requests
+#PyMuPDF
