@@ -1,4 +1,14 @@
-# ChalanCheck - Traffic Challan Assistant
-# Day 2: No external dependencies required.
-#requests
-#PyMuPDF
+# ChalanCheck - Python Dependencies
+
+# PDF downloading and processing
+requests
+certifi
+PyMuPDF
+
+# FastAPI service
+fastapi
+uvicorn[standard]
+
+# Data analysis and smart search
+pandas
+scikit-learn

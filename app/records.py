@@ -3,8 +3,26 @@ from data.sample_records import sample_records
 
 
 # 1. Load all traffic records
+import json
+from pathlib import Path
+
+
+DATA_FILE = Path(__file__).resolve().parent.parent / "data" / "records.json"
+
+
 def load_records():
-    return sample_records
+    """Load structured traffic challan records from JSON."""
+    try:
+        with DATA_FILE.open("r", encoding="utf-8") as file:
+            records = json.load(file)
+
+        if not isinstance(records, list):
+            raise ValueError("Expected a list of records in records.json")
+
+        return records
+
+    except (OSError, json.JSONDecodeError, ValueError) as error:
+        raise RuntimeError(f"Unable to load ChalanCheck records: {error}") from error
 
 
 # 2. Search records using a keyword
