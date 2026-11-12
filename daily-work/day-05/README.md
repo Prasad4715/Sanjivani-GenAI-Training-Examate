@@ -52,6 +52,29 @@ http://127.0.0.1:8000/docs
 - [ ] Commit and push Day 1–5 documentation.
 - [ ] Create and push the `checkpoint-1` Git tag.
 
-## Status
+## One-Function Explanation — FastAPI Health Check
 
-In progress — Day 5 documentation and Checkpoint 1 verification are pending.
+**Function:** Health Check  
+**File:** `app/main.py`  
+**Endpoint:** `GET /health`
+
+The health check function is used to verify whether the ChalanCheck backend is running properly.
+
+When a user sends a GET request to `/health`, FastAPI executes the corresponding Python function and returns a JSON response.
+
+**Expected response:**
+
+```json
+{
+  "status": "ok"
+}
+```
+
+I tested this endpoint using FastAPI Swagger UI at `http://127.0.0.1:8000/docs`.
+
+**Test Result:**
+- HTTP Status Code: 200 OK
+- Response: `{"status": "ok"}`
+- Result: Passed
+
+This confirms that the ChalanCheck API is running and responding successfully.
