@@ -7,6 +7,7 @@ from pydantic import BaseModel, Field
 from app.records import get_by_id, load_records
 from app.smart_search import smart_search
 
+from app.chat_service import generate_chat_answer
 
 app = FastAPI(
     title="ChalanCheck API",
@@ -17,6 +18,16 @@ app = FastAPI(
 
 class QuestionRequest(BaseModel):
     question: str = Field(min_length=1)
+
+class ChatRequest(BaseModel):
+    question: str = Field(min_length=1)
+    prompt_version: str = Field(default="v2", pattern="^(v1|v2)$")
+
+
+class ChatResponse(BaseModel):
+    answer: str
+    confidence: str
+    follow_up: str
 
 
 @app.get("/health")
@@ -68,3 +79,19 @@ def submit_question(request: QuestionRequest) -> dict[str, Any]:
         "status": "received",
         "message": "Question received. Answer generation is not implemented yet.",
     }
+
+@app.post("/chat", response_model=ChatResponse)
+def chat(request: ChatRequest):
+    """Explain a traffic challan question using legal records and Gemini."""
+    try:
+        return generate_chat_answer(
+            question=request.question,
+            prompt_version=request.prompt_version,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(
+            status_code=503,
+            detail="Chat service is temporarily unavailable.",
+        ) from exc

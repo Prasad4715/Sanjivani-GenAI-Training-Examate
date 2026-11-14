@@ -1,0 +1,37 @@
+
+Task: Provide a clear, accurate, and evidence-based explanation of the user's traffic challan question.
+
+User question:
+{question}
+
+Available legal records:
+{context}
+
+Instructions:
+1. Identify the relevant Motor Vehicles Act section or sections using only the available records.
+2. Explain each offence in simple English.
+3. State the first-offence and repeat-offence maximum fines separately when supported by the records.
+4. Mention additional legal actions only when supported by the records.
+5. If multiple sections are involved, explain each section separately.
+6. Calculate a combined maximum fine only when all required amounts and assumptions are supported by the records.
+7. Do not invent fines, sections, punishments, or local procedures.
+8. If the information is incomplete or unavailable, clearly say what cannot be verified.
+9. Distinguish statutory maximum fines from actual challan amounts.
+10. Keep the explanation understandable for an ordinary citizen.
+
+Present the answer using this structure:
+
+Relevant Section(s):
+[List the applicable sections, if verified]
+
+Offence Explanation:
+[Explain the violation in simple words]
+
+Maximum Fine:
+[State verified amounts or explain why they cannot be determined]
+
+Additional Action:
+[Explain verified consequences, if any]
+
+Important Note:
+[Mention uncertainty, missing information, or necessary verification]

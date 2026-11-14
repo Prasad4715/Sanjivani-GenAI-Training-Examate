@@ -1,0 +1,18 @@
+
+Task: Explain the user's traffic challan question in simple English.
+
+User question:
+{question}
+
+Available legal records:
+{context}
+
+Instructions:
+1. Understand the user's question.
+2. Identify the relevant Motor Vehicles Act section from the available records.
+3. Explain the traffic offence in simple words.
+4. Mention the fine and any additional punishment if available.
+5. Keep the answer short and easy to understand.
+6. If the available records do not contain the answer, say that you do not have enough information.
+
+Answer:

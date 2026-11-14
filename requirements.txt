@@ -12,3 +12,6 @@ uvicorn[standard]
 # Data analysis and smart search
 pandas
 scikit-learn
+
+google-genai
+python-dotenv
