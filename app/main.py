@@ -8,6 +8,7 @@ from app.records import get_by_id, load_records
 from app.smart_search import smart_search
 
 from app.chat_service import generate_chat_answer
+from app.vectorstore import semantic_search
 
 app = FastAPI(
     title="ChalanCheck API",
@@ -95,3 +96,34 @@ def chat(request: ChatRequest):
             status_code=503,
             detail="Chat service is temporarily unavailable.",
         ) from exc
+
+
+@app.get("/search/semantic")
+def search_semantic(q: str, limit: int = 5):
+    """Search legal PDF chunks using ChromaDB semantic retrieval."""
+    if not q.strip():
+        raise HTTPException(
+            status_code=400,
+            detail="Search question cannot be empty.",
+        )
+
+    if limit < 1 or limit > 20:
+        raise HTTPException(
+            status_code=400,
+            detail="Limit must be between 1 and 20.",
+        )
+
+    try:
+        results = semantic_search(q, limit=limit)
+
+        return {
+            "query": q,
+            "total_results": len(results),
+            "results": results,
+        }
+
+    except RuntimeError as error:
+        raise HTTPException(
+            status_code=503,
+            detail=str(error),
+        )
