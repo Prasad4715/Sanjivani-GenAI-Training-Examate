@@ -49,13 +49,16 @@ def chunk_pdf(pdf_path: Path) -> list[dict]:
                     f"{pdf_path.name}:{page_index}:{chunk_index}:{text}".encode("utf-8")
                 ).hexdigest()
 
+               
                 chunks.append({
                     "id": chunk_id,
                     "text": text,
                     "source": pdf_path.name,
                     "page": page_index + 1,
+                    "chunk_index": chunk_index,
                     "title": title,
                 })
+
 
     return chunks
 

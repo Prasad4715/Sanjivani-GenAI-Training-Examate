@@ -1,0 +1,108 @@
+
+[
+  {
+    "id": "Q01",
+    "question": "What is the penalty for not wearing a helmet under Section 194D?",
+    "expected_sections": ["194D"],
+    "expected_keywords": ["1000", "three months"],
+    "should_abstain": false
+  },
+  {
+    "id": "Q02",
+    "question": "What does Section 196 say about driving without insurance?",
+    "expected_sections": ["196"],
+    "expected_keywords": ["insurance", "penalty"],
+    "should_abstain": false
+  },
+  {
+    "id": "Q03",
+    "question": "What is the penalty for driving without a valid licence under Section 181?",
+    "expected_sections": ["181"],
+    "expected_keywords": ["licence", "5000"],
+    "should_abstain": false
+  },
+  {
+    "id": "Q04",
+    "question": "What is the penalty for speeding under Section 183?",
+    "expected_sections": ["183"],
+    "expected_keywords": ["speed", "fine"],
+    "should_abstain": false
+  },
+  {
+    "id": "Q05",
+    "question": "What happens if someone is caught drunk driving again under Section 185?",
+    "expected_sections": ["185"],
+    "expected_keywords": ["15000", "imprisonment"],
+    "should_abstain": false
+  },
+  {
+    "id": "Q06",
+    "question": "Can I pay my Maharashtra e-challan at Kopargaon police station on Sunday?",
+    "expected_sections": [],
+    "expected_keywords": [],
+    "should_abstain": true
+  },
+  {
+    "id": "Q07",
+    "question": "What is dangerous driving under Section 184?",
+    "expected_sections": ["184"],
+    "expected_keywords": ["dangerous", "driving"],
+    "should_abstain": false
+  },
+  {
+    "id": "Q08",
+    "question": "What is the penalty for allowing an unauthorised person to drive under Section 180?",
+    "expected_sections": ["180"],
+    "expected_keywords": ["5000", "drive"],
+    "should_abstain": false
+  },
+  {
+    "id": "Q09",
+    "question": "Explain Sections 194D and 196 separately.",
+    "expected_sections": ["194D", "196"],
+    "expected_keywords": ["helmet", "insurance"],
+    "should_abstain": false
+  },
+  {
+    "id": "Q10",
+    "question": "What additional punishment applies for racing under Section 189?",
+    "expected_sections": ["189"],
+    "expected_keywords": ["racing", "imprisonment"],
+    "should_abstain": false
+  },
+  {
+    "id": "Q11",
+    "question": "What is the punishment for driving a vehicle without registration under Section 192?",
+    "expected_sections": ["192"],
+    "expected_keywords": ["registration", "fine"],
+    "should_abstain": false
+  },
+  {
+    "id": "Q12",
+    "question": "What is the penalty for disobeying traffic authorities under Section 179?",
+    "expected_sections": ["179"],
+    "expected_keywords": ["2000", "authority"],
+    "should_abstain": false
+  },
+  {
+    "id": "Q13",
+    "question": "What does Section 194C say about motorcycle rider and pillion safety?",
+    "expected_sections": ["194C"],
+    "expected_keywords": ["motor cycle", "1000"],
+    "should_abstain": false
+  },
+  {
+    "id": "Q14",
+    "question": "Under which provision can a driving licence be impounded for certain traffic offences?",
+    "expected_sections": ["206"],
+    "expected_keywords": ["licence", "impound"],
+    "should_abstain": false
+  },
+  {
+    "id": "Q15",
+    "question": "What is the penalty for using a vehicle without a permit under Section 192A?",
+    "expected_sections": ["192A"],
+    "expected_keywords": ["permit", "penalty"],
+    "should_abstain": false
+  }
+]
