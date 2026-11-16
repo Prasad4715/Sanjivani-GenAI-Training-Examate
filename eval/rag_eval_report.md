@@ -8,8 +8,8 @@ Chunk overlap: 250 characters
 
 | Configuration | Top-k | Passed | API Errors | Pass Rate | Avg Time |
 |---|---:|---:|---:|---:|---:|
-| A_top3 | 3 | 14/15 | 0 | 93.33% | 4.3s |
-| B_top5 | 5 | 14/15 | 0 | 93.33% | 3.53s |
+| A_top3 | 3 | 15/15 | 0 | 100.0% | 9.34s |
+| B_top5 | 5 | 15/15 | 0 | 100.0% | 5.05s |
 
 **Winner:** B_top5
 

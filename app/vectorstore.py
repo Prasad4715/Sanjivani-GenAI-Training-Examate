@@ -8,13 +8,18 @@ import chromadb
 from app.chunking import chunk_all_documents
 from app.embed import embed_texts, embed_query
 
-
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 CHROMA_DIR = PROJECT_ROOT / "data" / "chroma"
 COLLECTION_NAME = "chalancheck_legal_chunks"
-
 ACT_SOURCE = "motor_vehicles_act_1988.pdf"
 AMENDMENT_SOURCE = "motor_vehicles_amendment_act_2019.pdf"
+
+# Section headings normally look like "194D. Penalty for ...".
+# A heading can appear in the middle of a PDF chunk.
+HEADING_PATTERN = re.compile(r"(?<![\w.])(?P<section>\d{1,3}[A-Za-z]?)\.\s+(?=[A-Za-z])")
+SECTION_REFERENCE = re.compile(r"\b(?:sections?|sec\.)\s*", re.IGNORECASE)
+SECTION_TOKEN = re.compile(r"\d{1,3}[A-Za-z]?(?:\s*\(\s*\d+\s*\))?")
+JOINER = re.compile(r"\s*(?:,|/|&|\band\b|\bor\b)\s*", re.IGNORECASE)
 
 
 def get_collection():
@@ -28,7 +33,7 @@ def get_collection():
 
 
 def index_documents(batch_size: int = 32) -> int:
-    """Rebuild the collection using PDF chunks with ordering metadata."""
+    """Rebuild the collection from PDF chunks with ordering metadata."""
     if batch_size < 1:
         raise ValueError("Batch size must be positive.")
 
@@ -67,36 +72,45 @@ def index_documents(batch_size: int = 32) -> int:
                 for chunk in batch
             ],
         )
-        print(f"Indexed {min(start + batch_size, len(chunks))}/{len(chunks)} chunks", flush=True)
-
+        print(
+            f"Indexed {min(start + batch_size, len(chunks))}/{len(chunks)} chunks",
+            flush=True,
+        )
     return collection.count()
 
 
 def extract_sections(question: str) -> list[str]:
-    """Read explicit section references, including 206(4) and 194D/196."""
-    pattern = (
-        r"\b(?:sections?|sec\.?)\s*"
-        r"(\d+[A-Za-z]?(?:\s*\(\d+\))?"
-        r"(?:\s*(?:,|/|&|and)\s*\d+[A-Za-z]?(?:\s*\(\d+\))?)*)"
-    )
+    """Extract explicitly named sections; keep 206(4) associated with 206."""
     sections = []
-    for match in re.finditer(pattern, question, flags=re.IGNORECASE):
-        sections.extend(re.findall(r"\d+[A-Za-z]?", re.sub(r"\(\d+\)", "", match.group(1))))
-    return list(dict.fromkeys(section.upper() for section in sections))
+    for reference in SECTION_REFERENCE.finditer(question):
+        position = reference.end()
+        token = SECTION_TOKEN.match(question, position)
+        if token is None:
+            continue
+        while token is not None:
+            # Retrieve the parent section's heading, including for subsection queries.
+            section = re.match(r"\d{1,3}[A-Za-z]?", token.group()).group().upper()
+            if section not in sections:
+                sections.append(section)
+            position = token.end()
+            joiner = JOINER.match(question, position)
+            if joiner is None:
+                break
+            position = joiner.end()
+            token = SECTION_TOKEN.match(question, position)
+    return sections
 
 
 def infer_sections(question: str) -> list[str]:
-    """Infer Section 206 only for clearly worded licence-impoundment queries."""
+    """Infer Section 206 for explicit driving-licence impoundment questions."""
     lower = question.lower()
     mentions_licence = bool(re.search(r"\b(?:driving\s+)?licen[cs]e\b", lower))
     mentions_impound = bool(re.search(r"\bimpound(?:ed|ing|ment)?\b", lower))
-    if mentions_licence and mentions_impound:
-        return ["206"]
-    return []
+    return ["206"] if mentions_licence and mentions_impound else []
 
 
 def source_priority(match: dict) -> int:
-    """Prefer the principal Act, then its 2019 amendment."""
+    """Prefer the consolidated principal Act over the amendment and rules."""
     source = match["source"].lower()
     if source == ACT_SOURCE:
         return 0
@@ -106,22 +120,22 @@ def source_priority(match: dict) -> int:
 
 
 def find_section_heading(text: str, section: str):
-    """Find a numbered section heading (not a mere mention of a section)."""
-    return re.search(
-        rf"(?<!\w){re.escape(section)}\.\s+[A-Za-z]",
-        text,
-        flags=re.IGNORECASE,
-    )
+    """Match a heading, not a mere cross-reference to a section."""
+    section = section.upper()
+    for heading in HEADING_PATTERN.finditer(text):
+        if heading.group("section").upper() == section:
+            return heading
+    return None
 
 
 def section_match_priority(match: dict, section: str) -> tuple:
-    """Rank actual section text ahead of index/table-of-contents references."""
+    """Prefer substantive headings in the principal Act over index entries."""
     heading = find_section_heading(match["text"], section)
     if heading is None:
         return (3, 3, 3, float("inf"))
 
     following = match["text"][heading.end():]
-    next_heading = re.search(r"\b\d{1,3}[A-Za-z]?\.\s+[A-Za-z]", following)
+    next_heading = HEADING_PATTERN.search(following)
     provision = following[:next_heading.start()] if next_heading else following
     indicators = ("whoever", "shall", "punishable", "liable", "police officer", "may, if")
     substantive = any(word in provision.lower() for word in indicators)
@@ -135,7 +149,7 @@ def section_match_priority(match: dict, section: str) -> tuple:
 
 
 def _as_match(chunk_id: str, document: str, metadata: dict, distance=None) -> dict:
-    """Convert ChromaDB fields to the search-result format."""
+    """Convert ChromaDB fields to the existing search-result format."""
     if "chunk_index" not in metadata:
         raise RuntimeError(
             "ChromaDB has old metadata without chunk_index. "
@@ -152,69 +166,97 @@ def _as_match(chunk_id: str, document: str, metadata: dict, distance=None) -> di
     }
 
 
-
-def expand_adjacent_chunks(matches: list[dict], limit: int) -> list[dict]:
-    """Expand selected results with consecutive chunks from the same PDF."""
-    collection = get_collection()
-    data = collection.get(include=["documents", "metadatas"])
-
+def _ordered_chunks(all_chunks: dict) -> tuple[dict, dict]:
+    """Build source-local chunk sequences and a lookup of chunk positions."""
     by_source = {}
-
     for chunk_id, document, metadata in zip(
-        data["ids"], data["documents"], data["metadatas"]
+        all_chunks["ids"], all_chunks["documents"], all_chunks["metadatas"]
     ):
-        source = metadata["source"]
-
-        by_source.setdefault(source, []).append({
-            "id": chunk_id,
-            "text": document,
-            "source": source,
-            "page": metadata["page"],
-            "chunk_index": metadata.get("chunk_index", 0),
-            "title": metadata["title"],
-            "distance": None,
-        })
+        match = _as_match(chunk_id, document, metadata)
+        by_source.setdefault(match["source"], []).append(match)
 
     positions = {}
-
     for source, chunks in by_source.items():
-        chunks.sort(key=lambda c: (c["page"], c["chunk_index"]))
-
+        chunks.sort(key=lambda chunk: (int(chunk["page"]), int(chunk["chunk_index"])))
         for position, chunk in enumerate(chunks):
             positions[chunk["id"]] = (source, position)
+    return by_source, positions
 
-    expanded = []
-    seen = set()
 
-    for match in matches:
-        if len(expanded) >= limit:
+def _continuation_chunks(seed: dict, by_source: dict, positions: dict):
+    """Yield later chunks until the next distinct section heading.
+
+    A provision can cross PDF pages, so continuation is based on source-local
+    chunk order, not on page equality.
+    """
+    location = positions.get(seed["id"])
+    if location is None:
+        return
+    source, position = location
+    chunks = by_source[source]
+    # Do not pull arbitrary pages into the answer. Three continuations is a
+    # bounded compromise for long provisions and small retrieval limits.
+    for chunk in chunks[position + 1:position + 4]:
+        # Stop at a new section heading near the beginning of the next chunk.
+        # A later heading can coexist with the end of the current provision.
+        heading = HEADING_PATTERN.search(chunk["text"])
+        if heading and heading.start() < 120:
             break
+        yield chunk
 
-        location = positions.get(match["id"])
-        if location is None:
-            continue
 
-        source, position = location
-        document_chunks = by_source[source]
+def expand_adjacent_chunks(
+    matches: list[dict],
+    limit: int,
+    all_chunks: dict | None = None,
+) -> list[dict]:
+    """Reserve one slot per seed, then fairly add adjacent supporting chunks.
 
-        # Include the matched chunk and consecutive following chunks.
-        for chunk in document_chunks[position:position + limit]:
+    Unlike the previous implementation, this does not allow the first seed to
+    consume every available slot before other selected sections are included.
+    """
+    if limit < 1 or not matches:
+        return []
+
+    seeds = []
+    seen = set()
+    for match in matches:
+        if match["id"] not in seen:
+            seeds.append(match)
+            seen.add(match["id"])
+        if len(seeds) == limit:
+            return seeds
+
+    if all_chunks is None:
+        all_chunks = get_collection().get(include=["documents", "metadatas"])
+    by_source, positions = _ordered_chunks(all_chunks)
+    expanded = list(seeds)
+    streams = [iter(_continuation_chunks(seed, by_source, positions)) for seed in seeds]
+
+    # Round-robin: each requested section gets an opportunity for context.
+    while len(expanded) < limit and streams:
+        remaining = []
+        progress = False
+        for stream in streams:
             if len(expanded) >= limit:
                 break
-
-            if chunk["id"] in seen:
-                continue
-
-            expanded.append(
-                match if chunk["id"] == match["id"] else chunk
-            )
-            seen.add(chunk["id"])
-
+            for chunk in stream:
+                if chunk["id"] not in seen:
+                    expanded.append(chunk)
+                    seen.add(chunk["id"])
+                    progress = True
+                    remaining.append(stream)
+                    break
+            # Exhausted streams are not reused.
+        if not progress:
+            break
+        streams = remaining
     return expanded
 
+
 def semantic_search(question: str, limit: int = 5) -> list[dict]:
-    """Search legal passages, prioritizing sections and their continuations."""
-    if not question.strip():
+    """Retrieve section headings and balanced continuations, or semantic matches."""
+    if not question or not question.strip():
         raise ValueError("Search question cannot be empty.")
     if limit < 1:
         raise ValueError("Search limit must be positive.")
@@ -222,9 +264,7 @@ def semantic_search(question: str, limit: int = 5) -> list[dict]:
     collection = get_collection()
     total = collection.count()
     if total == 0:
-        raise RuntimeError(
-            "ChromaDB collection is empty. Run python -m app.vectorstore first."
-        )
+        raise RuntimeError("ChromaDB collection is empty. Run python -m app.vectorstore first.")
 
     query_vector = embed_query(question)
     results = collection.query(
@@ -242,15 +282,12 @@ def semantic_search(question: str, limit: int = 5) -> list[dict]:
         )
     ]
 
-    sections = extract_sections(question)
-    if not sections:
-        sections = infer_sections(question)
-
-    # Preserve ordinary semantic search when no section can be identified.
+    sections = extract_sections(question) or infer_sections(question)
     if not sections:
         return matches[:limit]
 
-    # Find section headings even when vector similarity did not rank them highly.
+    # Full scan is necessary because the right section heading may be outside
+    # the top semantic matches. Only one scan is performed per section query.
     all_chunks = collection.get(include=["documents", "metadatas"])
     known_ids = {match["id"] for match in matches}
     for chunk_id, document, metadata in zip(
@@ -262,11 +299,9 @@ def semantic_search(question: str, limit: int = 5) -> list[dict]:
             matches.append(_as_match(chunk_id, document, metadata))
             known_ids.add(chunk_id)
 
-    # Reserve slots for neighboring chunks, but keep all requested sections.
-    primary_limit = min(limit, max(len(sections), (limit + 1) // 2))
     selected = []
     selected_ids = set()
-
+    # Every requested section gets a dedicated seed, as long as space exists.
     for section in sections:
         candidates = [
             match for match in matches
@@ -278,29 +313,42 @@ def semantic_search(question: str, limit: int = 5) -> list[dict]:
             best = candidates[0]
             selected.append(best)
             selected_ids.add(best["id"])
-        if len(selected) >= primary_limit:
-            return expand_adjacent_chunks(selected, limit)
+        if len(selected) >= limit:
+            return selected
 
-    # Prefer other matching sections, then fill with semantic results.
+    # Prefer section-heading seeds and their continuations over unrelated
+    # semantic hits. If no heading is found, use semantic seeds instead.
+    max_seeds = len(selected) if selected else min(limit, (limit + 1) // 2)
+
     def remaining_priority(match: dict):
-        scores = [
+        headings = [
             section_match_priority(match, section)
             for section in sections
             if find_section_heading(match["text"], section)
         ]
-        if scores:
-            return (0, min(scores))
+        if headings:
+            return (0, min(headings))
         distance = match.get("distance")
         return (1, distance if distance is not None else float("inf"))
 
     for match in sorted(matches, key=remaining_priority):
-        if len(selected) >= primary_limit:
+        if len(selected) >= max_seeds:
             break
         if match["id"] not in selected_ids:
             selected.append(match)
             selected_ids.add(match["id"])
 
-    return expand_adjacent_chunks(selected, limit)
+    expanded = expand_adjacent_chunks(selected, limit, all_chunks=all_chunks)
+    # If adjacency is exhausted, return additional semantic matches instead
+    # of unnecessarily returning fewer than the requested number of chunks.
+    expanded_ids = {match["id"] for match in expanded}
+    for match in sorted(matches, key=remaining_priority):
+        if len(expanded) >= limit:
+            break
+        if match["id"] not in expanded_ids:
+            expanded.append(match)
+            expanded_ids.add(match["id"])
+    return expanded
 
 
 if __name__ == "__main__":
