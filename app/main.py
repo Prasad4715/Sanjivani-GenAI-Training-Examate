@@ -4,22 +4,24 @@
 from typing import Any
 
 from fastapi import FastAPI, HTTPException, Query
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 from app.records import get_by_id, load_records
 from app.smart_search import smart_search
 from app.chat_service import generate_chat_answer
 from app.vectorstore import semantic_search
 from app.rag import ask_question
+from app.graph import graph, run_graph
 
 
 app = FastAPI(
     title="ChalanCheck API",
     description=(
         "API for explaining Indian traffic challans "
-        "using legal records, semantic search and RAG."
+        "using legal records, semantic search, RAG, "
+        "and a LangGraph agent."
     ),
-    version="1.1.0",
+    version="1.2.0",
 )
 
 
@@ -73,6 +75,66 @@ class AskResponse(BaseModel):
     answer: str
     citations: list[CitationResponse]
     retrieved_chunks: int
+
+
+# --------------------------------------------------
+# Day 9: LangGraph Agent Models
+# --------------------------------------------------
+
+class AgentRequest(BaseModel):
+    """Start a new agent question or resume an approval."""
+
+    session_id: str = Field(
+        min_length=1,
+        max_length=100,
+        description="Unique conversation session ID",
+    )
+
+    question: str | None = Field(
+        default=None,
+        description="New question for the agent",
+    )
+
+    approve: bool | None = Field(
+        default=None,
+        description=(
+            "True to approve a pending calculation; "
+            "False to reject it"
+        ),
+    )
+
+    @model_validator(mode="after")
+    def validate_action(self):
+        """Require either a question or approval, not both."""
+
+        has_question = (
+            self.question is not None
+            and bool(self.question.strip())
+        )
+
+        has_approval = self.approve is not None
+
+        if has_question == has_approval:
+            raise ValueError(
+                "Provide either a non-empty question "
+                "or an approval decision, not both."
+            )
+
+        return self
+
+
+class AgentResponse(BaseModel):
+    """Response from the LangGraph agent."""
+
+    session_id: str
+    pending_approval: bool
+    approval_request: dict[str, Any] | None = None
+    answer: str | None = None
+    sections: list[str] = Field(default_factory=list)
+    errors: list[str] = Field(default_factory=list)
+    history: list[dict[str, str]] = Field(
+        default_factory=list
+    )
 
 
 # --------------------------------------------------
@@ -257,4 +319,94 @@ def ask_chalancheck(request: AskRequest):
         raise HTTPException(
             status_code=503,
             detail="Question answering is temporarily unavailable.",
+        ) from exc
+
+
+# --------------------------------------------------
+# Day 9: LangGraph Agent
+# --------------------------------------------------
+
+@app.post("/agent", response_model=AgentResponse)
+def agent_endpoint(request: AgentRequest):
+    """
+    Run the LangGraph agent.
+
+    Features:
+    - RAG-based legal explanations
+    - Maximum fine calculations
+    - Conversation memory
+    - Human approval before calculation
+    - Approval and rejection handling
+    """
+
+    config = {
+        "configurable": {
+            "thread_id": request.session_id
+        }
+    }
+
+    try:
+        snapshot = graph.get_state(config)
+
+        # ------------------------------------------
+        # Resume a pending approval
+        # ------------------------------------------
+
+        if request.approve is not None:
+
+            if (
+                not snapshot.next
+                or "approval" not in snapshot.next
+            ):
+                raise HTTPException(
+                    status_code=409,
+                    detail=(
+                        "No pending approval exists "
+                        "for this session."
+                    ),
+                )
+
+            result = run_graph(
+                session_id=request.session_id,
+                approve=request.approve,
+            )
+
+            return result
+
+        # ------------------------------------------
+        # Start a new question
+        # ------------------------------------------
+
+        if snapshot.next:
+            raise HTTPException(
+                status_code=409,
+                detail=(
+                    "This session has a pending approval. "
+                    "Approve or reject the calculation "
+                    "before asking another question."
+                ),
+            )
+
+        result = run_graph(
+            question=request.question,
+            session_id=request.session_id,
+        )
+
+        return result
+
+    except HTTPException:
+        raise
+
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=400,
+            detail=str(exc),
+        ) from exc
+
+    except Exception as exc:
+        raise HTTPException(
+            status_code=503,
+            detail=(
+                "Agent service is temporarily unavailable."
+            ),
         ) from exc
