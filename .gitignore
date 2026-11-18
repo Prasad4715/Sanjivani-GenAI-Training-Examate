@@ -1,13 +1,17 @@
 
 # Python virtual environment
 .venv/
+venv/
 
 # Python cache files
 __pycache__/
 *.py[cod]
+.pytest_cache/
 
 # Environment variables and secrets
 .env
+.env.*
+!.env.example
 
 # VS Code settings
 .vscode/
@@ -18,3 +22,16 @@ Thumbs.db
 
 # Local ChromaDB vector database
 data/chroma/
+
+# Day 10 - Private user feedback
+data/chat_feedback.jsonl
+
+# Local data backups
+data/records_backup.json
+data/records_pre_validation_backup.json
+
+# Generated evaluation results
+eval/rag_eval_results.json
+
+# Streamlit secrets
+.streamlit/secrets.toml
