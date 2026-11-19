@@ -4,7 +4,6 @@ from pathlib import Path
 
 import pandas as pd
 
-
 DATA_FILE = Path(__file__).resolve().parent.parent / "data" / "records.json"
 
 

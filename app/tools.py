@@ -6,7 +6,6 @@ import re
 from pathlib import Path
 from typing import Any
 
-
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 RECORDS_PATH = PROJECT_ROOT / "data" / "records.json"
 

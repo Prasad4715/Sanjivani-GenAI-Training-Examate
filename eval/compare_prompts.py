@@ -2,11 +2,10 @@
 """Compare ChalanCheck task prompts using 10 evaluation questions."""
 
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 from app.chat_service import generate_chat_answer
-
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 OUTPUT_FILE = PROJECT_ROOT / "eval" / "prompt_results.json"
@@ -57,7 +56,7 @@ def main():
         OUTPUT_FILE.write_text(
             json.dumps(
                 {
-                    "evaluated_at": datetime.now(timezone.utc).isoformat(),
+                    "evaluated_at": datetime.now(UTC).isoformat(),
                     "model_provider": "Gemini",
                     "results": results,
                 },

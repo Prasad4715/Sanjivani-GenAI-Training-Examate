@@ -8,7 +8,6 @@ from pathlib import Path
 
 from app.rag import ask_question
 
-
 ROOT = Path(__file__).resolve().parent
 EVAL_FILE = ROOT / "eval_set.json"
 RESULTS_FILE = ROOT / "rag_eval_results.json"

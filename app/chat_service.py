@@ -9,7 +9,6 @@ from app.llm import LLMProvider
 from app.records import get_by_id
 from app.smart_search import smart_search
 
-
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 PROMPTS_DIR = PROJECT_ROOT / "prompts"
 

@@ -6,7 +6,7 @@ from pathlib import Path
 import chromadb
 
 from app.chunking import chunk_all_documents
-from app.embed import embed_texts, embed_query
+from app.embed import embed_query, embed_texts
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 CHROMA_DIR = PROJECT_ROOT / "data" / "chroma"
@@ -87,6 +87,7 @@ def extract_sections(question: str) -> list[str]:
         token = SECTION_TOKEN.match(question, position)
         if token is None:
             continue
+
         while token is not None:
             # Retrieve the parent section's heading, including for subsection queries.
             section = re.match(r"\d{1,3}[A-Za-z]?", token.group()).group().upper()
@@ -170,7 +171,10 @@ def _ordered_chunks(all_chunks: dict) -> tuple[dict, dict]:
     """Build source-local chunk sequences and a lookup of chunk positions."""
     by_source = {}
     for chunk_id, document, metadata in zip(
-        all_chunks["ids"], all_chunks["documents"], all_chunks["metadatas"]
+        all_chunks["ids"],
+        all_chunks["documents"],
+        all_chunks["metadatas"],
+        strict=False,
     ):
         match = _as_match(chunk_id, document, metadata)
         by_source.setdefault(match["source"], []).append(match)
@@ -194,6 +198,7 @@ def _continuation_chunks(seed: dict, by_source: dict, positions: dict):
         return
     source, position = location
     chunks = by_source[source]
+
     # Do not pull arbitrary pages into the answer. Three continuations is a
     # bounded compromise for long provisions and small retrieval limits.
     for chunk in chunks[position + 1:position + 4]:
@@ -279,6 +284,7 @@ def semantic_search(question: str, limit: int = 5) -> list[dict]:
             results["documents"][0],
             results["metadatas"][0],
             results["distances"][0],
+            strict=False,
         )
     ]
 
@@ -291,7 +297,10 @@ def semantic_search(question: str, limit: int = 5) -> list[dict]:
     all_chunks = collection.get(include=["documents", "metadatas"])
     known_ids = {match["id"] for match in matches}
     for chunk_id, document, metadata in zip(
-        all_chunks["ids"], all_chunks["documents"], all_chunks["metadatas"]
+        all_chunks["ids"],
+        all_chunks["documents"],
+        all_chunks["metadatas"],
+        strict=False,
     ):
         if chunk_id not in known_ids and any(
             find_section_heading(document, section) for section in sections

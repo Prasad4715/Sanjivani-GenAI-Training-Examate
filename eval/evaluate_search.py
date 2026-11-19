@@ -5,7 +5,6 @@ from pathlib import Path
 
 from app.vectorstore import semantic_search
 
-
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 OUTPUT_FILE = PROJECT_ROOT / "eval" / "search_results.md"
 

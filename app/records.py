@@ -1,11 +1,9 @@
 
-from data.sample_records import sample_records
 
 
 # 1. Load all traffic records
 import json
 from pathlib import Path
-
 
 DATA_FILE = Path(__file__).resolve().parent.parent / "data" / "records.json"
 

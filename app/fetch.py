@@ -1,11 +1,10 @@
 
-import requests
-import certifi
-
 from pathlib import Path
+
+import certifi
+import requests
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
-
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 RAW_DIR = BASE_DIR / "data" / "raw"

@@ -6,7 +6,6 @@ import re
 from app.llm import LLMProvider
 from app.vectorstore import semantic_search
 
-
 RAG_SYSTEM_PROMPT = """
 You are ChalanCheck, an Indian traffic challan explanation assistant.
 

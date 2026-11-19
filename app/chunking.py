@@ -1,11 +1,10 @@
 
 """Extract page-aware text chunks from ChalanCheck legal PDFs."""
 
-from pathlib import Path
 import hashlib
+from pathlib import Path
 
 import pymupdf
-
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 RAW_DIR = PROJECT_ROOT / "data" / "raw"
@@ -46,7 +45,7 @@ def chunk_pdf(pdf_path: Path) -> list[dict]:
 
             for chunk_index, text in enumerate(chunk_text(page_text)):
                 chunk_id = hashlib.sha256(
-                    f"{pdf_path.name}:{page_index}:{chunk_index}:{text}".encode("utf-8")
+                    f"{pdf_path.name}:{page_index}:{chunk_index}:{text}".encode()
                 ).hexdigest()
 
                

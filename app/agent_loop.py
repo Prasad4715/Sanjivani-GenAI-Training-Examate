@@ -8,7 +8,6 @@ from typing import Any
 from app.rag import ask_question
 from app.tools import challan_total_calculator
 
-
 MAX_TOOL_CALLS = 3
 
 

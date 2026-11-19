@@ -1,16 +1,15 @@
 
 """LangGraph workflow for ChalanCheck."""
 
-import re
 from typing import Any, TypedDict
 
-from langgraph.graph import StateGraph, START, END
 from langgraph.checkpoint.memory import MemorySaver
-from langgraph.types import interrupt, Command
+from langgraph.graph import END, START, StateGraph
+from langgraph.types import Command, interrupt
 
 from app.agent_loop import (
-    extract_section_codes,
     detect_repeat_offence,
+    extract_section_codes,
     select_tools,
 )
 from app.rag import ask_question

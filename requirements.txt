@@ -1,3 +1,4 @@
+
 # ChalanCheck - Python Dependencies
 
 # PDF downloading and processing
@@ -5,17 +6,24 @@ requests
 certifi
 PyMuPDF
 
-# FastAPI service
+# FastAPI backend
 fastapi
 uvicorn[standard]
 
-# Data analysis and smart search
+# Streamlit frontend
+streamlit
+
+# Data analysis and search
 pandas
 scikit-learn
 
+# LLM integration
 google-genai
 python-dotenv
 
+# Vector database and embeddings
 chromadb
 sentence-transformers
-pymupdf
+
+# Agent workflow
+langgraph

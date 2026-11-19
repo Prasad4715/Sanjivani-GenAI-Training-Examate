@@ -1,19 +1,18 @@
 
 import json
+import os
 import re
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 import requests
 import streamlit as st
 
-
 # --------------------------------------------------
 # Configuration
 # --------------------------------------------------
-
-API_URL = "http://127.0.0.1:8000"
+API_URL = os.getenv("API_BASE_URL", "http://127.0.0.1:8000")
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 FEEDBACK_FILE = PROJECT_ROOT / "data" / "chat_feedback.jsonl"
@@ -117,7 +116,7 @@ def save_feedback(
     )
 
     feedback = {
-        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "timestamp": datetime.now(UTC).isoformat(),
         "session_id": st.session_state.session_id,
         "message_id": message_id,
         "question": question,

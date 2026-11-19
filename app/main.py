@@ -6,13 +6,12 @@ from typing import Any
 from fastapi import FastAPI, HTTPException, Query
 from pydantic import BaseModel, Field, model_validator
 
+from app.chat_service import generate_chat_answer
+from app.graph import graph, run_graph
+from app.rag import ask_question
 from app.records import get_by_id, load_records
 from app.smart_search import smart_search
-from app.chat_service import generate_chat_answer
 from app.vectorstore import semantic_search
-from app.rag import ask_question
-from app.graph import graph, run_graph
-
 
 app = FastAPI(
     title="ChalanCheck API",
