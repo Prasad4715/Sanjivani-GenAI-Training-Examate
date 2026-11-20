@@ -24,11 +24,26 @@ jobs:
         with:
           python-version: "3.11"
 
+      
       - name: Install test dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install ruff pytest
-          pip install fastapi httpx requests certifi PyMuPDF python-dotenv google-genai
+          python -m pip install ruff pytest httpx
+          python -m pip install google-genai
+          python -m pip install fastapi requests certifi PyMuPDF python-dotenv
+          python -m pip show google-genai
+
+      - name: Verify Google GenAI import
+        run: |
+          python -c "from google import genai; print('Google GenAI import successful')"
+
+      - name: Run Ruff
+        run: python -m ruff check .
+
+      - name: Run Pytest
+        run: python -m pytest -q
+
+
 
       - name: Run Ruff
         run: ruff check .
