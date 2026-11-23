@@ -1,9 +1,13 @@
 
 """FastAPI application for ChalanCheck."""
 
+
+
+import logging
+import time
 from typing import Any
 
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Query, Request
 from pydantic import BaseModel, Field, model_validator
 
 from app.chat_service import generate_chat_answer
@@ -24,16 +28,63 @@ app = FastAPI(
 )
 
 
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger("chalancheck")
+
+MAX_QUESTION_LENGTH = 2000
+
+
+@app.middleware("http")
+async def log_request_latency(request: Request, call_next):
+    """Measure and log HTTP request processing time."""
+    start_time = time.perf_counter()
+
+    try:
+        response = await call_next(request)
+    except Exception:
+        latency_ms = (time.perf_counter() - start_time) * 1000
+        logger.exception(
+            "Request failed: method=%s path=%s latency_ms=%.2f",
+            request.method,
+            request.url.path,
+            latency_ms,
+        )
+        raise
+
+    latency_ms = (time.perf_counter() - start_time) * 1000
+
+    logger.info(
+        "Request completed: method=%s path=%s status=%s latency_ms=%.2f",
+        request.method,
+        request.url.path,
+        response.status_code,
+        latency_ms,
+    )
+
+    response.headers["X-Process-Time-Ms"] = f"{latency_ms:.2f}"
+
+    return response
+
+
+
 # --------------------------------------------------
 # Request and Response Models
 # --------------------------------------------------
 
 class QuestionRequest(BaseModel):
-    question: str = Field(min_length=1)
+    question: str = Field(
+        min_length=1,
+        max_length=MAX_QUESTION_LENGTH,
+        description="Question (maximum 2000 characters)",
+    )
 
 
 class ChatRequest(BaseModel):
-    question: str = Field(min_length=1)
+    question: str = Field(
+        min_length=1,
+        max_length=MAX_QUESTION_LENGTH,
+        description="Question (maximum 2000 characters)",
+    )
     prompt_version: str = Field(
         default="v2",
         pattern="^(v1|v2)$",
@@ -51,7 +102,8 @@ class AskRequest(BaseModel):
 
     question: str = Field(
         min_length=1,
-        description="Traffic challan question",
+        max_length=MAX_QUESTION_LENGTH,
+        description="Traffic challan question (maximum 2000 characters)",
     )
 
     top_k: int = Field(
@@ -91,7 +143,9 @@ class AgentRequest(BaseModel):
 
     question: str | None = Field(
         default=None,
-        description="New question for the agent",
+        min_length=1,
+        max_length=MAX_QUESTION_LENGTH,
+        description="New question for the agent (maximum 2000 characters)",
     )
 
     approve: bool | None = Field(
@@ -182,7 +236,7 @@ def get_record(id: str):
 # --------------------------------------------------
 
 @app.get("/search")
-def search_records(q: str = Query(min_length=1)):
+def search_records(q: str = Query(min_length=1, max_length=MAX_QUESTION_LENGTH)):
     """Search and rank traffic records using TF-IDF."""
 
     results = smart_search(q)
@@ -247,7 +301,7 @@ def chat(request: ChatRequest):
 
 @app.get("/search/semantic")
 def search_semantic(
-    q: str,
+    q: str = Query(min_length=1, max_length=MAX_QUESTION_LENGTH),
     limit: int = 5,
 ):
     """Search legal PDF chunks using ChromaDB semantic retrieval."""

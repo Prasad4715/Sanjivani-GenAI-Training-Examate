@@ -3,6 +3,7 @@
 
 import re
 
+from app.cache import get_cached_answer, set_cached_answer
 from app.llm import LLMProvider
 from app.vectorstore import semantic_search
 
@@ -73,14 +74,31 @@ def ask_question(
 ) -> dict:
     """Answer a question using retrieved legal evidence."""
 
+    # Validate question
     if not question or not question.strip():
         raise ValueError("Question cannot be empty.")
 
+    # Validate retrieval limit
     if top_k < 1 or top_k > 20:
         raise ValueError("top_k must be between 1 and 20.")
 
-    # Questions requiring live local operational information
-    # cannot be answered using the available legal PDFs.
+    # Normalize the question for caching
+    normalized_question = question.strip()
+
+    # Include retrieval limit in cache key
+    cache_key = (normalized_question, top_k)
+
+    # Disable cache when a custom LLM is supplied
+    use_cache = llm is None
+
+    # Step 1: Check cache
+    if use_cache:
+        cached_result = get_cached_answer(cache_key)
+
+        if cached_result is not None:
+            return cached_result
+
+    # Step 2: Handle unsupported operational questions
     if is_operational_question(question):
         return {
             "question": question,
@@ -89,7 +107,11 @@ def ask_question(
             "retrieved_chunks": 0,
         }
 
-    chunks = semantic_search(question, limit=top_k)
+    # Step 3: Retrieve legal evidence
+    chunks = semantic_search(
+        question,
+        limit=top_k,
+    )
 
     if not chunks:
         return {
@@ -99,6 +121,7 @@ def ask_question(
             "retrieved_chunks": 0,
         }
 
+    # Step 4: Build evidence context
     context = build_context(chunks)
 
     prompt = f"""
@@ -116,6 +139,7 @@ INSTRUCTIONS:
 - If evidence is insufficient, say exactly: I don't know
 """
 
+    # Step 5: Generate answer using Gemini
     provider = llm if llm is not None else LLMProvider()
 
     answer = provider.generate(
@@ -123,6 +147,7 @@ INSTRUCTIONS:
         system_prompt=RAG_SYSTEM_PROMPT,
     ).strip()
 
+    # Step 6: Handle insufficient evidence
     if not answer or answer.lower().startswith("i don't know"):
         return {
             "question": question,
@@ -130,8 +155,9 @@ INSTRUCTIONS:
             "citations": [],
             "retrieved_chunks": len(chunks),
         }
-    
-    # Support individual citations [1] and grouped citations [1, 3].
+
+    # Step 7: Extract legal citations
+    # Supports [1], [2], and grouped citations such as [1, 3]
     cited_numbers = set()
 
     for citation_group in re.findall(
@@ -144,8 +170,7 @@ INSTRUCTIONS:
             if 1 <= reference <= len(chunks):
                 cited_numbers.add(reference)
 
-
-    # Do not present an unsupported answer as grounded.
+    # Step 8: Reject answers without valid citations
     if not cited_numbers:
         return {
             "question": question,
@@ -154,6 +179,7 @@ INSTRUCTIONS:
             "retrieved_chunks": len(chunks),
         }
 
+    # Step 9: Prepare citation details
     citations = [
         {
             "reference": f"[{number}]",
@@ -164,9 +190,16 @@ INSTRUCTIONS:
         for number in sorted(cited_numbers)
     ]
 
-    return {
+    # Step 10: Prepare final response
+    result = {
         "question": question,
         "answer": answer,
         "citations": citations,
         "retrieved_chunks": len(chunks),
     }
+
+    # Step 11: Cache only successful, cited answers
+    if use_cache:
+        set_cached_answer(cache_key, result)
+
+    return result
