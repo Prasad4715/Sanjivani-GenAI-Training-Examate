@@ -1,5 +1,9 @@
 # ChalanCheck – Traffic Challan Assistant
 
+
+[![ChalanCheck CI](https://github.com/Prasad4715/Sanjivani-GenAI-Training-Examate/actions/workflows/ci.yml/badge.svg)](https://github.com/Prasad4715/Sanjivani-GenAI-Training-Examate/actions/workflows/ci.yml)
+
+
 ## Project Overview
 
 ChalanCheck is an AI-powered Traffic Challan Assistant designed to help Indian vehicle owners understand traffic violations and e-challans in simple language.
