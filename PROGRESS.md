@@ -66,11 +66,10 @@ Final release: Pending verification
 - Verified deployed Streamlit application.
 - Tested Section 185 Challan Decoder.
 - Verified multiple-section detection for Sections 184 and 185.
-
-### Pending Verification
-- Repeat-offence checkbox and fine selection.
-- Final automated tests and lint checks.
-- Final Git commit and release tag.
+- Repeat-offence checkbox and fine selection: Verified successfully.
+- Section 184 repeat-offence fine: ₹10,000.
+- Section 185 repeat-offence fine: ₹15,000.
+- Multiple-section detection: Passed.
 
 ### Deployment Links
 - Frontend: https://chalancheck-ui.onrender.com
